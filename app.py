@@ -59,6 +59,29 @@ def get_slot_machine_spin(rows, cols, symbols):
 @app.route("/")
 def index():
     return render_template("index.html")
+@app.route("/spin", methods=["POST"])
+def spin_api():
+    data = request.get_json()
+    lines = int(data.get("lines", 1))
+    bet = int(data.get("bet", 1))
+    balance = int(data.get("balance", 0))
+
+    if not 1 <= lines <= MAX_LINES:
+        return jsonify({"error": "Choose 1 to 3 lines"}), 400
+    if not MIN_BET <= bet <= MAX_BET:
+        return jsonify({"error": "Bet must be between 1 and 100"}), 400
+    if bet * lines > balance:
+        return jsonify({"error": "Not enough balance"}), 400
+
+    columns = get_slot_machine_spin(ROWS, COLS, symbol_count)
+    winnings, winning_lines = check_winnings(
+        columns, lines, bet, symbol_value
+    )
+    return jsonify({
+        "columns": columns,
+        "winnings": winnings,
+        "winning_lines": winning_lines
+    })
 def print_slot_machine(columns):
     for row in range(len(columns[0])):
         for i, column in enumerate(columns):
