@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lucky Slots</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes spin-reel {
+      0%   { transform: translateY(0); }
+      100% { transform: translateY(-300%); }
+    }
+    @keyframes pulse-win {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+      50%       { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+    }
+    @keyframes coin-drop {
+      0%   { opacity: 0; transform: translateY(-20px) scale(0.8); }
+      60%  { opacity: 1; transform: translateY(4px) scale(1.05); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+    body {
+      background: #0f0f1a;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+    .slot-cell {
+      width: 82px; height: 82px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.2rem; font-weight: 900;
+      border-radius: 14px;
+      border: 2px solid #2a2a4a;
+      background: #12122a;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      overflow: hidden;
+    }
+    .slot-cell.win-cell {
+      border-color: #fbbf24;
+      box-shadow: 0 0 18px rgba(251,191,36,0.55);
+      background: rgba(251,191,36,0.07);
+    }
+    .spinning .reel-symbol { animation: spin-reel 0.1s linear infinite; }
+    .result-appear         { animation: coin-drop 0.4s ease-out forwards; }
+    .shake-anim            { animation: shake 0.4s ease-in-out; }
+    .win-pulse             { animation: pulse-win 0.6s ease-in-out 3; }
+
+    .btn-primary {
+      background: #7c3aed; color: #fff;
+      border-radius: 12px; padding: 12px 28px;
+      font-weight: 800; font-size: 1.1rem;
+      border: none; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      width: 100%;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.85; transform: scale(1.02); }
+    .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-sm {
+      background: #2a2a4a; color: #d0d0ff;
+      border: 1px solid #3a3a6a; border-radius: 10px;
+      padding: 8px 0; font-weight: 700; font-size: 0.9rem;
+      cursor: pointer; flex: 1;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-sm.active { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+    .btn-sm:hover:not(.active) { background: #333355; }
+
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #2a2a4a; transition: background 0.3s;
+    }
+    .dot.active { background: #fbbf24; }
+    .dot.win    { background: #4ade80; }
+
+    input[type="range"] {
+      accent-color: #7c3aed; width: 100%; height: 6px;
+    }
+    input[type="number"] {
+      background: #12122a; border: 1px solid #2a2a4a;
+      border-radius: 10px; color: #fff;
+      font-size: 1.1rem; font-weight: 700;
+      padding: 10px 14px; outline: none; width: 100%;
+    }
+    .muted { color: #8080b0; }
+    .green  { color: #4ade80; }
+    .red    { color: #f87171; }
+    .gold   { color: #fbbf24; }
+
+    .sym-A { color: #f87171; }
+    .sym-B { color: #fb923c; }
+    .sym-C { color: #facc15; }
+    .sym-D { color: #a3e635; }
+  </style>
+</head>
+<body>
+
+  <!-- ══ DEPOSIT SCREEN ══════════════════════════════════════════════════════ -->
+  <div id="deposit-screen" style="width:100%;max-width:380px">
+    <div class="card text-center">
+      <div style="font-size:3.5rem;margin-bottom:12px">🎰</div>
+      <h1 style="font-size:1.6rem;font-weight:900;margin-bottom:4px">Lucky Slots</h1>
+      <p class="muted" style="font-size:0.85rem;margin-bottom:20px">
+        Powered by Python + Flask backend
+      </p>
+
+      <p style="text-align:left;font-size:0.8rem;font-weight:700;color:#8080b0;margin-bottom:6px">
+        DEPOSIT AMOUNT
+      </p>
+      <div style="display:flex;align-items:center;gap:8px;background:#12122a;border:1px solid #2a2a4a;border-radius:12px;padding:10px 16px;margin-bottom:10px">
+        <span style="font-weight:900;color:#8080b0">$</span>
+        <input id="deposit-input" type="number" min="1" value="100"
+          style="border:none;background:transparent;flex:1;font-size:1.2rem;font-weight:800;color:#fff;outline:none" />
+      </div>
+      <p id="deposit-error" class="red" style="font-size:0.75rem;margin-bottom:8px;display:none">
+        Enter a valid amount greater than 0.
+      </p>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px">
+        <button class="btn-sm" onclick="setDeposit(50)">$50</button>
+        <button class="btn-sm" onclick="setDeposit(100)">$100</button>
+        <button class="btn-sm" onclick="setDeposit(250)">$250</button>
+        <button class="btn-sm" onclick="setDeposit(500)">$500</button>
+      </div>
+
+      <button class="btn-primary" onclick="startGame()">🎲 Let's Play!</button>
+
+      <!-- Paytable -->
+      <div style="margin-top:20px;background:#12122a;border:1px solid #2a2a4a;border-radius:12px;padding:16px;text-align:left">
+        <p style="font-size:0.7rem;font-weight:800;color:#8080b0;letter-spacing:0.1em;margin-bottom:12px">PAYTABLE</p>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:0.9rem">
+          <div style="display:flex;justify-content:space-between">
+            <span class="sym-A" style="font-weight:900">🍒 A A A</span>
+            <span class="muted">5× bet &nbsp;<span style="font-size:0.75rem">(rare)</span></span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span class="sym-B" style="font-weight:900">🔔 B B B</span>
+            <span class="muted">4× bet</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span class="sym-C" style="font-weight:900">⭐ C C C</span>
+            <span class="muted">3× bet</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span class="sym-D" style="font-weight:900">🍋 D D D</span>
+            <span class="muted">2× bet &nbsp;<span style="font-size:0.75rem">(common)</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ GAME SCREEN ═════════════════════════════════════════════════════════ -->
+  <div id="game-screen" style="width:100%;max-width:480px;display:none;flex-direction:column;gap:16px">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h1 style="font-size:1.3rem;font-weight:900">🎰 Lucky Slots</h1>
+        <p class="muted" style="font-size:0.75rem">Python backend is running the logic</p>
+      </div>
+      <button class="btn-sm" style="flex:none;padding:8px 18px" onclick="cashOut()">Cash Out 💸</button>
+    </div>
+
+    <!-- Balance bar -->
+    <div style="background:linear-gradient(135deg,#1a1a2e,#12122a);border:1px solid #2a2a4a;border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <p class="muted" style="font-size:0.7rem;font-weight:800;letter-spacing:0.1em">BALANCE</p>
+        <p id="balance-display" style="font-size:2.2rem;font-weight:900">$0</p>
+      </div>
+      <div style="text-align:right">
+        <p class="muted" style="font-size:0.7rem;font-weight:800;letter-spacing:0.1em">TOTAL BET</p>
+        <p id="total-bet-display" style="font-size:1.4rem;font-weight:900;color:#a78bfa">$0</p>
+      </div>
+    </div>
+
+    <!-- Reels -->
+    <div class="card" style="display:flex;align-items:center;justify-content:center;gap:12px">
+      <!-- Left dots -->
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="dot" id="dl0"></div>
+        <div class="dot" id="dl1"></div>
+        <div class="dot" id="dl2"></div>
+      </div>
+
+      <!-- 3×3 grid -->
+      <div id="reels" style="display:flex;gap:10px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="slot-cell" id="c0r0"><span class="reel-symbol">?</span></div>
+          <div class="slot-cell" id="c0r1"><span class="reel-symbol">?</span></div>
+          <div class="slot-cell" id="c0r2"><span class="reel-symbol">?</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="slot-cell" id="c1r0"><span class="reel-symbol">?</span></div>
+          <div class="slot-cell" id="c1r1"><span class="reel-symbol">?</span></div>
+          <div class="slot-cell" id="c1r2"><span class="reel-symbol">?</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="slot-cell" id="c2r0"><span class="reel-symbol">?</span></div>
+          <div class="slot-cell" id="c2r1"><span class="reel-symbol">?</span></div>
+          <div class="slot-cell" id="c2r2"><span class="reel-symbol">?</span></div>
+        </div>
+      </div>
+
+      <!-- Right dots -->
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="dot" id="dr0"></div>
+        <div class="dot" id="dr1"></div>
+        <div class="dot" id="dr2"></div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-box" style="display:none" class="card text-center result-appear">
+      <p id="result-text" style="font-weight:800;font-size:1rem"></p>
+      <p id="result-sub"  class="muted" style="font-size:0.85rem;margin-top:4px"></p>
+    </div>
+
+    <!-- Controls -->
+    <div class="card" style="display:flex;flex-direction:column;gap:18px">
+
+      <!-- Lines -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <p class="muted" style="font-size:0.8rem;font-weight:700">LINES TO BET</p>
+          <span id="lines-label" style="font-size:0.85rem;font-weight:900;background:#12122a;border:1px solid #2a2a4a;border-radius:8px;padding:2px 12px">1</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="lb1" class="btn-sm active" onclick="setLines(1)">1 Line</button>
+          <button id="lb2" class="btn-sm"        onclick="setLines(2)">2 Lines</button>
+          <button id="lb3" class="btn-sm"        onclick="setLines(3)">3 Lines</button>
+        </div>
+      </div>
+
+      <!-- Bet -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <p class="muted" style="font-size:0.8rem;font-weight:700">BET PER LINE</p>
+          <span id="bet-label" style="font-size:0.85rem;font-weight:900;background:#12122a;border:1px solid #2a2a4a;border-radius:8px;padding:2px 12px">$1</span>
+        </div>
+        <input id="bet-slider" type="range" min="1" max="100" value="1"
+          oninput="onBetSlider(this.value)" />
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#8080b0;margin-top:4px">
+          <span>$1</span><span>$25</span><span>$50</span><span>$75</span><span>$100</span>
+        </div>
+      </div>
+
+      <!-- Spin -->
+      <button id="spin-btn" class="btn-primary" onclick="spinReels()">🎰 SPIN</button>
+      <p id="bet-warn" class="red" style="font-size:0.78rem;text-align:center;display:none">
+        Insufficient balance for this bet!
+      </p>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div class="card" style="text-align:center;padding:14px">
+        <p class="muted" style="font-size:0.68rem;font-weight:800;letter-spacing:0.08em">SPINS</p>
+        <p id="st-spins" style="font-size:1.6rem;font-weight:900">0</p>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <p class="muted" style="font-size:0.68rem;font-weight:800;letter-spacing:0.08em">WINS</p>
+        <p id="st-wins"  style="font-size:1.6rem;font-weight:900;color:#4ade80">0</p>
+      </div>
+      <div class="card" style="text-align:center;padding:14px">
+        <p class="muted" style="font-size:0.68rem;font-weight:800;letter-spacing:0.08em">NET</p>
+        <p id="st-net"   style="font-size:1.6rem;font-weight:900">$0</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ CASH OUT SCREEN ═════════════════════════════════════════════════════ -->
+  <div id="cashout-screen" style="width:100%;max-width:360px;display:none">
+    <div class="card" style="text-align:center">
+      <div id="co-emoji" style="font-size:3.5rem;margin-bottom:12px">💰</div>
+      <h2 style="font-size:1.5rem;font-weight:900;margin-bottom:4px">You cashed out!</h2>
+      <p class="muted" style="font-size:0.85rem;margin-bottom:6px">You left with</p>
+      <p id="co-amount" style="font-size:3rem;font-weight:900;margin:12px 0"></p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+        <div style="background:#12122a;border:1px solid #2a2a4a;border-radius:12px;padding:12px">
+          <p class="muted" style="font-size:0.78rem;font-weight:700">Deposited</p>
+          <p id="co-dep" style="font-size:1.2rem;font-weight:900"></p>
+        </div>
+        <div style="background:#12122a;border:1px solid #2a2a4a;border-radius:12px;padding:12px">
+          <p class="muted" style="font-size:0.78rem;font-weight:700">Net P&amp;L</p>
+          <p id="co-pnl" style="font-size:1.2rem;font-weight:900"></p>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="resetGame()">🔄 Play Again</button>
+    </div>
+  </div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let balance = 0, depositedAmount = 0;
+let currentLines = 1, currentBet = 1;
+let spinning = false;
+let statSpins = 0, statWins = 0, statNet = 0;
+
+const SYMBOL_EMOJI  = { A:'🍒', B:'🔔', C:'⭐', D:'🍋' };
+const SYMBOL_CLASS  = { A:'sym-A', B:'sym-B', C:'sym-C', D:'sym-D' };
+const COLS = 3, ROWS = 3;
+
+// ── Deposit ────────────────────────────────────────────────────────────────
+function setDeposit(v) { document.getElementById('deposit-input').value = v; }
+
+function startGame() {
+  const v = parseInt(document.getElementById('deposit-input').value, 10);
+  if (!v || v <= 0) {
+    document.getElementById('deposit-error').style.display = 'block'; return;
+  }
+  document.getElementById('deposit-error').style.display = 'none';
+  balance = v; depositedAmount = v;
+  document.getElementById('deposit-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display   = 'flex';
+  updateUI();
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+function setLines(n) {
+  currentLines = n;
+  document.getElementById('lines-label').textContent = n;
+  [1,2,3].forEach(i => {
+    document.getElementById(`lb${i}`).className = `btn-sm${i===n?' active':''}`;
+  });
+  updateDots([]);
+  updateUI();
+}
+
+function onBetSlider(v) {
+  currentBet = parseInt(v, 10);
+  document.getElementById('bet-label').textContent = `$${v}`;
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('balance-display').textContent = `$${balance}`;
+  const total = currentBet * currentLines;
+  document.getElementById('total-bet-display').textContent = `$${total}`;
+  document.getElementById('st-spins').textContent = statSpins;
+  document.getElementById('st-wins').textContent  = statWins;
+  const netEl = document.getElementById('st-net');
+  netEl.textContent = `${statNet >= 0 ? '+' : ''}$${statNet}`;
+  netEl.style.color = statNet > 0 ? '#4ade80' : statNet < 0 ? '#f87171' : '';
+
+  const tooMuch = total > balance;
+  document.getElementById('bet-warn').style.display = tooMuch ? 'block' : 'none';
+  document.getElementById('spin-btn').disabled = tooMuch || spinning;
+}
+
+function updateDots(winLines0) {
+  for (let r = 0; r < ROWS; r++) {
+    const active = r < currentLines;
+    const won    = winLines0.includes(r);
+    ['dl','dr'].forEach(p => {
+      const el = document.getElementById(`${p}${r}`);
+      el.className = `dot${won ? ' win' : active ? ' active' : ''}`;
+    });
+  }
+}
+
+// ── Reel rendering ─────────────────────────────────────────────────────────
+function showSpinning() {
+  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
+    const cell = document.getElementById(`c${c}r${r}`);
+    cell.classList.add('spinning'); cell.classList.remove('win-cell');
+    cell.innerHTML = `<span class="reel-symbol" style="color:#4040a0">?</span>`;
+  }
+}
+
+function renderCell(c, r, sym, win) {
+  const cell = document.getElementById(`c${c}r${r}`);
+  cell.classList.remove('spinning');
+  cell.innerHTML = `<span class="reel-symbol ${SYMBOL_CLASS[sym]}">${SYMBOL_EMOJI[sym]}</span>`;
+  cell.classList.toggle('win-cell', win);
+  if (win) cell.classList.add('win-pulse');
+}
+
+// ── Main Spin — calls Flask /spin ──────────────────────────────────────────
+async function spinReels() {
+  if (spinning) return;
+  const totalBet = currentBet * currentLines;
+  if (totalBet > balance) return;
+
+  spinning = true;
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('result-box').style.display = 'none';
+
+  // Deduct bet immediately (optimistic)
+  balance -= totalBet;
+  updateUI();
+  showSpinning();
+  updateDots([]);
+
+  // ── Send request to Flask backend ────────────────────────────────────────
+  let data;
+  try {
+    const res = await fetch('/spin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lines:   currentLines,
+        bet:     currentBet,
+        balance: balance + totalBet   // send original balance for validation
+      })
+    });
+    data = await res.json();
+    if (!res.ok) { alert(data.error || 'Server error'); balance += totalBet; spinning=false; updateUI(); return; }
+  } catch(e) {
+    alert('Could not reach Flask server. Is it running?');
+    balance += totalBet; spinning = false; updateUI(); return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Stagger column reveal using data from Python
+  await delay(800);
+  for (let c = 0; c < COLS; c++) {
+    await delay(180);
+    for (let r = 0; r < ROWS; r++) {
+      const sym = data.columns[c][r];
+      const win = data.winning_lines.includes(r + 1); // winning_lines is 1-indexed
+      renderCell(c, r, sym, win);
+    }
+  }
+
+  await delay(200);
+  updateDots(data.winning_lines.map(l => l - 1));   // convert to 0-indexed for dots
+
+  // Update balance with server result
+  balance += data.winnings;
+  statSpins++;
+  statNet += data.winnings - totalBet;
+  if (data.winnings > 0) statWins++;
+
+  // Show result message
+  const box  = document.getElementById('result-box');
+  const txt  = document.getElementById('result-text');
+  const sub  = document.getElementById('result-sub');
+
+  box.style.display = 'block';
+  box.classList.remove('result-appear');
+  void box.offsetWidth;
+  box.classList.add('result-appear');
+
+  if (data.winnings > 0) {
+    txt.textContent = `🎉 You won $${data.winnings}!`;
+    txt.style.color = '#4ade80';
+    sub.textContent = `Winning line${data.winning_lines.length > 1 ? 's' : ''}: ${data.winning_lines.join(', ')}`;
+  } else {
+    txt.textContent = `😔 No win. Lost $${totalBet}.`;
+    txt.style.color = '#f87171';
+    sub.textContent = 'Better luck next spin!';
+    const reels = document.getElementById('reels');
+    reels.classList.add('shake-anim');
+    setTimeout(() => reels.classList.remove('shake-anim'), 500);
+  }
+
+  spinning = false;
+  updateUI();
+
+  if (balance <= 0) { await delay(1500); cashOut(); }
+}
+
+// ── Cash Out ───────────────────────────────────────────────────────────────
+function cashOut() {
+  document.getElementById('game-screen').style.display    = 'none';
+  document.getElementById('cashout-screen').style.display = 'block';
+  const pnl = balance - depositedAmount;
+  document.getElementById('co-amount').textContent = `$${balance}`;
+  document.getElementById('co-dep').textContent    = `$${depositedAmount}`;
+  const pnlEl = document.getElementById('co-pnl');
+  pnlEl.textContent  = `${pnl >= 0 ? '+' : ''}$${pnl}`;
+  pnlEl.style.color  = pnl >= 0 ? '#4ade80' : '#f87171';
+  document.getElementById('co-emoji').textContent = balance >= depositedAmount ? '🤑' : '😢';
+}
+
+function resetGame() {
+  balance = 0; depositedAmount = 0; statSpins = 0; statWins = 0; statNet = 0;
+  currentLines = 1; currentBet = 1;
+  document.getElementById('cashout-screen').style.display = 'none';
+  document.getElementById('deposit-screen').style.display = 'block';
+  document.getElementById('deposit-input').value = 100;
+  document.getElementById('bet-slider').value = 1;
+  for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
+    const cell = document.getElementById(`c${c}r${r}`);
+    cell.className = 'slot-cell';
+    cell.innerHTML = `<span class="reel-symbol">?</span>`;
+  }
+  setLines(1);
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Init ───────────────────────────────────────────────────────────────────
+setLines(1);
+</script>
+</body>
+</html>
